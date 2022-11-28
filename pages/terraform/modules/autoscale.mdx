@@ -1,0 +1,290 @@
+import Callout from 'nextra-theme-docs/callout'
+
+# tf/autoscale/
+
+Esse módulo é responsável pela criação de um grupo de auto escalonamento de instâncias EC2
+para um serviço de alta disponibilidade (HA).
+
+<Callout emoji="✅">
+    Para este projeto, resolvi que seria interessante utilizar um projeto que fiz há aproximadamente um ano
+    para a disciplina de Tecnologias Web do 4º período do curso de Engenharia de Computação no Insper.
+
+    Então para isso, precisei primeiramente criar três instâncias EC2, uma para o banco de dados, uma para o
+    frontend e uma para o backend, e instalar todas as dependências necessárias para que o projeto funcionasse.
+
+    Tendo as instâncias criadas, utilizei a ferramenta de criação de imagens do EC2 para criar uma imagem
+    da instância que contém o backend, para que eu pudesse utilizar essa imagem para criar as Instâncias
+    do Auto Scaling Group.
+</Callout>
+
+<Callout emoji="⚠️">
+    Para que o Auto Scaling Group funcione não será necessário utilizar atributos de repetição
+    como o que foi usado nos outros módulos (`for_each`), pois o Auto Scaling Group já é uma
+    estrutura de repetição.
+</Callout>
+
+## Criação de Chaves Públicas
+
+O primeiro passo para a criação do Auto Scaling Group é a criação de uma chave pública para que seja possível
+acessar as instâncias EC2 que serão criadas.
+
+<Callout emoji="⚠️">
+    As chaves serão salvada no diretório `keys`.
+</Callout>
+
+```hcl
+resource "tls_private_key" "pk" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+resource "aws_key_pair" "kp" {
+  key_name   = "backendKey"
+  public_key = tls_private_key.pk.public_key_openssh
+  provisioner "local-exec" {
+    command = "echo '${tls_private_key.pk.private_key_pem}' > '${path.module}/keys/backendKey.pem'"
+  }
+}
+```
+
+## Criação do Security Group
+
+Como no módulo **ec2** o Security Group é criado para cada instância EC2, no Auto Scaling Group
+o Security Group será criado apenas uma vez, pois todas as instâncias EC2 que serão criadas
+terão o mesmo Security Group.
+
+```hcl
+resource "aws_security_group" "websg" {
+  name = "security_group_for_web_server"
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+```
+
+<Callout emoji="✅">
+    O security group criado permite que as instâncias EC2 criadas tenham acesso a porta 80 e 22.
+</Callout>
+
+
+## Criação do Launch Configuration
+
+O primeiro passo para criação do Auto Scaling Group é bem parecida com a criação de uma instância EC2,
+porém, ao invés de utilizar o recurso `aws_instance`, utilizamos o recurso `aws_launch_configuration`.
+
+```hcl
+resource "aws_launch_configuration" "webcluster" {
+  image_id        = "ami-xxxxxxxxxxxxxxxxx"
+  instance_type   = "t2.micro"
+  security_groups = ["${aws_security_group.websg.id}"]
+  key_name        = aws_key_pair.kp.key_name
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+```
+<Callout emoji="⚠️">
+    A ami está escondida para não ser utilizada por outras pessoas.
+</Callout>
+
+<Callout emoji="⚠️">
+    O `lifecycle` é utilizado para que o Terraform crie uma nova instância antes de destruir a antiga.
+</Callout>
+
+
+## Criação do Auto Scaling Group
+
+A criação do Auto Scaling Group é bem simples, basta utilizar o recurso `aws_autoscaling_group` e
+passar os parâmetros necessários.
+
+```hcl
+resource "aws_autoscaling_group" "scalegroup" {
+  launch_configuration = aws_launch_configuration.webcluster.name
+  availability_zones   = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  min_size             = 1
+  max_size             = 4
+  enabled_metrics      = ["GroupMinSize", "GroupMaxSize", "GroupDesiredCapacity", "GroupInServiceInstances", "GroupTotalInstances"]
+  metrics_granularity  = "1Minute"
+  load_balancers       = ["${aws_elb.elb1.id}"]
+  health_check_type    = "ELB"
+  tag {
+    key                 = "Name"
+    value               = "backend"
+    propagate_at_launch = true
+  }
+}
+```
+
+<Callout emoji="✅">
+    O Auto Scaling Group foi criado com o mínimo de 1 instância e o máximo de 4 instâncias.
+</Callout>
+
+## Criação das Políticas de Escala
+
+Para que o Auto Scaling Group funcione, é necessário criar uma política de escala e 
+associá-la ao Auto Scaling Group.
+
+```hcl
+resource "aws_autoscaling_policy" "autopolicy" {
+  name                   = "terraform-autoplicy"
+  scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.scalegroup.name
+}
+
+resource "aws_autoscaling_policy" "autopolicy-down" {
+  name                   = "terraform-autoplicy-down"
+  scaling_adjustment     = -1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.scalegroup.name
+}
+```
+
+## Criação do Alarme de CPU
+
+Para que o Auto Scaling Group funcione, além das políticas de escala, é necessário criar um alarme
+que será acionado quando a CPU estiver acima de 70% por 2 minutos, e outro alarme que será acionado
+quando a CPU estiver abaixo de 10% por 2 minutos.
+
+```hcl
+resource "aws_cloudwatch_metric_alarm" "cpualarm" {
+  alarm_name          = "terraform-alarm"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "120"
+  statistic           = "Average"
+  threshold           = "70"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.scalegroup.name
+  }
+
+  alarm_description = "This metric monitor EC2 instance cpu utilization"
+  alarm_actions     = ["${aws_autoscaling_policy.autopolicy.arn}"]
+}
+
+resource "aws_cloudwatch_metric_alarm" "cpualarm-down" {
+  alarm_name          = "terraform-alarm-down"
+  comparison_operator = "LessThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "120"
+  statistic           = "Average"
+  threshold           = "10"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.scalegroup.name
+  }
+
+  alarm_description = "This metric monitor EC2 instance cpu utilization"
+  alarm_actions     = ["${aws_autoscaling_policy.autopolicy-down.arn}"]
+}
+```
+
+## Criação do Security Group para o Load Balancer
+
+O Security Group do Load Balancer é bem parecido com o Security Group das instâncias EC2, porém,
+não é necessário liberar a porta 22, pois o acesso ao Load Balancer será feito apenas pela porta 80.
+
+```hcl
+resource "aws_security_group" "elbsg" {
+  name = "security_group_for_elb"
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+```
+
+## Criação do Load Balancer
+
+A criação do Load Balancer é bem simples, basta utilizar o recurso `aws_elb` e passar os parâmetros
+necessários.
+
+```hcl
+resource "aws_elb" "elb1" {
+  name               = "terraform-elb"
+  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  security_groups    = ["${aws_security_group.elbsg.id}"]
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "HTTP:80/checkserver/"
+    interval            = 30
+  }
+
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
+
+}
+```
+
+<Callout emoji="✅">
+    Criar o Load Balancer é necessário para que o Auto Scaling Group funcione, já que ele conecta 
+    as instâncias EC2 a um mesmo IP, permitindo que o tráfego seja balanceado entre as elas.
+</Callout>
+
+## Criação da Política de Cookie
+
+O recurso `aws_lb_cookie_stickiness_policy` é utilizado para criar uma política de cookie para o
+Load Balancer. Essa política é utilizada para que o tráfego seja direcionado para a mesma instância
+EC2, caso o usuário tenha um cookie de sessão.
+
+```hcl
+resource "aws_lb_cookie_stickiness_policy" "cookie_stickness" {
+  name                     = "cookiestickness"
+  load_balancer            = aws_elb.elb1.id
+  lb_port                  = 80
+  cookie_expiration_period = 600
+}
+```

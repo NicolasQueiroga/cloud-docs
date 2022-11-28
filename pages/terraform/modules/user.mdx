@@ -1,0 +1,81 @@
+import Callout from 'nextra-theme-docs/callout'
+
+# tf/user/
+
+Esse módulo é responsável pela criação de usuários e associação de restrições especícias a eles.
+
+<Callout emoji="⚠️">
+    Assim como no módulo `tf/ec2`, o módulo `tf/user` precisa ser capaz de criar multiplos usuários por vez, por isso,
+    o atributo `for_each` é utilizado.
+</Callout>
+
+
+## Criação de restrições (se presentes)
+
+Primeiramente é necessário que seja criada a politica de restrição
+do usuário, caso exista alguma restrição para o mesmo.
+
+Para isso, os recursos `aws_iam_policy_document` e `aws_iam_policy` são utilizados.
+
+```hcl
+data "aws_iam_policy_document" "ec2_policy" {
+  for_each = { for user in var.users : user.name => user }
+  policy_id = each.value.name
+  statement {
+    effect = "Allow"
+    sid = "VisualEditor0"
+    actions = each.value.restrictions.actions
+    resources = each.value.restrictions.resources
+  }
+}
+
+resource "aws_iam_policy" "ec2_policy" {
+  for_each = { for user in var.users : user.name => user }
+  name        = each.value.restrictions.name
+  description = each.value.restrictions.description
+  policy      = data.aws_iam_policy_document.ec2_policy[each.value.name].json
+}
+```
+
+## Criação de usuários
+
+Para a criação de usuários, o recurso `aws_iam_user` é utilizado. e para a associação de restrições, o recurso `aws_iam_user_policy_attachment` é utilizado.
+
+```hcl
+resource "aws_iam_user" "user" {
+  for_each = { for user in var.users : user.name => user }
+  name     = each.value.name
+}
+
+resource "aws_iam_user_policy_attachment" "user_policy_attachment" {
+  for_each = { for user in var.users : user.name => user }
+  user      = aws_iam_user.user[each.value.name].name
+  policy_arn = aws_iam_policy.ec2_policy[each.value.name].arn
+}
+```
+
+## Criação de chaves de acesso
+
+Por fim, para garantir que os usuários criados terão acesso ao dashboard da AWS, 
+é necessário que sejam criadas chaves de acesso para cada um deles.
+
+Para isso, os recursos `aws_iam_access_key` e `aws_iam_user_login_profile` são utilizados.
+
+```hcl
+resource "aws_iam_access_key" "iam_access_key" {
+  for_each = { for user in var.users : user.name => user }
+  user     = aws_iam_user.user[each.value.name].name
+}
+
+resource "aws_iam_user_login_profile" "profile" {
+  for_each                = { for user in var.users : user.name => user }
+  user                    = aws_iam_user.user[each.value.name].name
+  password_length         = 13
+  password_reset_required = true
+}
+```
+
+<Callout emoji="⚠️">
+    Todas as senhas geradas para os usuários são guardadas no arquivo `terraform.tfstate` e podem ser acessadas
+    através do comando `terraform state show aws_iam_user_login_profile.profile[<user_name>].password`.
+</Callout>

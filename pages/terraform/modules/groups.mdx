@@ -1,0 +1,70 @@
+import Callout from 'nextra-theme-docs/callout'
+
+# tf/groups/
+
+No último módulo que vimos, construimos a criação de usuários com restrições específicas à cada um deles.
+Mas caso esse usuário participe de um time de desenvolvimento, ele terá acesso a todos os recursos que o time tem acesso.
+Por isso é necessário criar grupos de usuários e atribuir os usuários a esses grupos.
+
+<Callout emoji="⚠️">
+    Aqui de novo para lembrar do uso do atributo `for_each` para permitir a criação de multiplos
+    grupos de usuários com um único bloco de código.
+</Callout>
+
+Esse módulo é muito parecido com o módulo de criação de usuários, pelo fato da criação de políticas
+serem muito parecidas, a diferença é que aqui não precisamos criar um usuário, mas sim um grupo de usuários e adicionar
+qualquer usuário que precisar de acesso a esse grupo.
+
+## Criação de restrições
+
+Aqui a criação das políticas de restrição sao praticamente iguais as do módulo de criação de usuários, a diferença é que
+por simplicidade decidi retirar os campos **name** e **description** de cada restrição.
+
+```hcl
+data "aws_iam_policy_document" "ec2_policy" {
+  for_each = { for group in var.user_groups : group.name => group }
+  policy_id = each.value.name
+  statement {
+    effect = "Allow"
+    sid = "VisualEditor0"
+    actions = each.value.restrictions.actions
+    resources = each.value.restrictions.resources
+  }
+}
+
+resource "aws_iam_policy" "ec2_policy" {
+  for_each = { for group in var.user_groups : group.name => group }
+  policy      = data.aws_iam_policy_document.ec2_policy[each.value.name].json
+}
+```
+
+## Criação de grupos
+
+Para essa ação teremos que usar um recurso de criação de grupo e outro de anexação de políticas ao grupo.
+
+```hcl
+resource "aws_iam_group" "group" {
+    for_each = { for group in var.user_groups : group.name => group }
+    name     = each.value.name
+}
+
+resource "aws_iam_group_policy_attachment" "group_policy_attachment" {
+  for_each = { for group in var.user_groups : group.name => group }
+  group      = aws_iam_group.group[each.value.name].name
+  policy_arn = aws_iam_policy.ec2_policy[each.value.name].arn
+}
+```
+
+## Inclusão de usuários aos grupos
+
+Aqui é bem simples, basta usar o recurso de anexação de usuários aos grupos com o nome do grupo e o nome do usuário.
+
+
+```hcl
+resource "aws_iam_group_membership" "group_membership" {
+  for_each = { for group in var.user_groups : group.name => group }
+  name = each.value.name
+  users = [for user in var.users : user.name if contains(user.groups_ids, each.value.id)]
+  group = aws_iam_group.group[each.value.name].name
+}
+```

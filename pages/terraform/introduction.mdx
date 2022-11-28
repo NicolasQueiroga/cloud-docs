@@ -1,0 +1,94 @@
+import Bleed from 'nextra-theme-docs/bleed'
+import Callout from 'nextra-theme-docs/callout'
+
+# Terraform
+
+## O que é?
+
+O Terraform é uma ferramenta de provisionamento de infraestrutura como código, 
+ou seja, é uma ferramenta que permite que você crie, altere e exclua recursos de 
+infraestrutura de forma automatizada e idempotente. 
+
+O Terraform é uma ferramenta 
+de código aberto e multiplataforma, ou seja, você pode utilizá-lo em qualquer sistema 
+operacional.
+
+## Integrações com o Terraform
+
+O Terraform possui integrações com os principais provedores de nuvem, como
+AWS, Azure, Google Cloud, Digital Ocean, entre outros. Além disso, ele também
+possui integrações com ferramentas de gerenciamento de configuração, como
+Ansible, Chef, Puppet, entre outros.
+
+<Callout emoji="📚" title="Referências">
+  1851 empresas supostamente usam o Terraform em seus stacks de tecnologia, incluindo Uber, Udemy e Instacart.
+</Callout>
+
+## Estrutura de um projeto Terraform
+
+O Terraform utiliza um arquivo chamado `main.tf` para definir os recursos que
+serão provisionados. Esse arquivo é escrito em uma linguagem chamada HCL (HashiCorp
+Configuration Language), que é uma linguagem de configuração declarativa.
+
+<Callout emoji="📚" title="Referências">
+  A linguagem HCL é baseada no JSON e no YAML.
+</Callout>
+
+### Exemplo de um arquivo main.tf
+
+```hcl
+provider "aws" {
+  region = "us-east-1"
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
+}
+
+resource "aws_instance" "example" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+}
+```
+
+O arquivo acima cria uma instância EC2 na região `us-east-1` com a imagem
+`ami-0c55b159cbfafe1f0` e o tipo `t2.micro`.
+
+
+## Váriaveis de ambiente
+
+O Terraform possui uma funcionalidade chamada `variáveis de ambiente`, que
+permite que você defina variáveis que serão utilizadas no arquivo `main.tf` (como representado no [exemplo](introduction#exemplo-de-um-arquivo-maintf) dado a cima). 
+
+Essas
+variáveis podem ser definidas em um arquivo chamado `terraform.tfvars`, que deve
+ser criado na raiz do projeto Terraform.
+
+<Callout emoji="📝">
+  <strong>Observação:</strong> O arquivo <code>terraform.tfvars</code> não deve ser
+  versionado, pois ele contém informações sensíveis, como chaves de acesso.
+</Callout>
+
+### Exemplo de um arquivo terraform.tfvars
+
+```hcl
+aws_access_key = "AKIAIOSFODNN7EXAMPLE"
+aws_secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+```
+
+## Workspaces
+
+O Terraform possui uma funcionalidade chamada `workspaces`, que permite que você
+crie ambientes de forma isolada. Por exemplo, você pode criar um workspace para
+cada ambiente (dev, staging, prod, etc).
+
+Como citado acima, workspaces no terraform são uma forma de organizar seus arquivos de configuração.
+Eles são uma forma de agrupar recursos que fazem sentido juntos, como por exemplo, um ambiente de desenvolvimento, um ambiente de produção.
+
+No nosso caso, utilizamos workspaces para separar as regiões onde os recursos serão criados, como por exemplo, `us-east-1` e `us-east-2`, ou 
+`global` no caso de recursos que não precisam de região como **IAM** para a criação de usuários e grupos de usuários.
+
+<Callout emoji="⚠️">
+    Se não criassemos workspaces ou qualquer outra forma de separar os arquivos de configuração, ao executar o comando `terraform apply` 
+    o terraform iria tentar criar todos os recursos em apenas uma região, já que o recurso `providers.tf` que configura a região da **VPC** 
+    não aceita realizar loops (como o `for_each`, que será explicado na [proxima sessão](module-template)) para
+    criar recursos em múltiplas regiões.
+</Callout>

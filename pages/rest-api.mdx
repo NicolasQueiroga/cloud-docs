@@ -1,0 +1,60 @@
+import Callout from 'nextra-theme-docs/callout'
+
+
+# Django Rest Framework API
+
+O backend é compsto por uma API REST construída com o Django Rest Framework. A API é responsável por gerenciar as reqisições e respostas da aplicação.
+
+As requisições que podem ser feitas são:
+
+  * [**GET**](rest-api#get)
+  * [**POST**](rest-api#post)
+
+
+## GET
+
+O método GET é responsável por retornar os dados contidos no arquivo `my_variables.json`, que é por onde sabemos se existe algo já criado pelo **Terraform** ou se o ambiente está vazio.
+
+<Callout emoji="⚠️">
+    O arquivo `my_variables.json` é criado automaticamente pelo backend, caso não exista.
+</Callout>
+
+## POST
+
+Este é o método utilizado pelo **Frontend** para enviar o arquivo `my_variables.json` para o backend. O arquivo é enviado para o backend e o mesmo o salva em um diretório específico, que é o mesmo que o **Terraform** utiliza para ler os dados.
+
+<Callout emoji="⚠️">
+    Apesar de tratar o arquivo recebido pela requisição como as váriaveis de ambiente,
+    o mesmo não é utilizado por conta da complexidade das possíbilidades de configuração do **Terraform**.
+
+    Por conta disso, é necessário que o arquivo recebido seja tratado previamente para que o **Terraform** consiga ler e interpretar corretamente.
+</Callout>
+
+## Processando o arquivo
+
+Os dados em `JSON` recebidos pelo backend são processados e salvos em um arquivo chamado `my_variables.json`, 
+que vai servir como **controle** para a nossa interface para sabermos o que está presente atualmente em nosso ambiente.
+
+As complexidades presentes que impossibilitam o uso do arquivo `my_variables.json` como variáveis de ambiente são:
+
+  * Para ser possível a criação de uma **VPC** e uma **subnet** (vamos saber o que são essas coisas no tópico [**tf/network**](/terraform/modules/network)) por região, 
+        é necessária a criação de [**workspaces**](/terraform/introduction#workspaces) dentro do **Terraform**.
+
+  * A criação de usuários e de grupos de usuários não necessita de uma região específica vinculado a eles, já que eles são globais.
+
+Ou seja, precisamos dividir o arquivo `my_variables.json` em duas partes: 
+  1. Um arquivo `default.json` para a criação dos **usuários** e **grupos de usuários**.
+  2. Para a criação das **instâncias**, **grupos de segurança**, **subnets** e **VPC** será necessário a criação de um *dicionário*, em *python*, com os nomes das regiões
+        como chaves, e as instâncias pertencentes à região e seus grupos de segurança associados como valores.
+
+
+Com o arquivo `default.json` criado, vamos acessar o **workspace** de nome **default** e criar os **usuários** e **grupos de usuários**.
+
+Já com o dicionário construído, vamos criar um [**workspace**](/terraform/introduction#workspaces) para cada região, 
+assim como um arquivo de váriaveis de âmbiente com o nome de cada região,
+e criar as **instâncias**, **grupos de segurança**, **subnets** e **VPC**.
+
+
+<Callout emoji="⚠️">
+    O arquivo `default.json` assim como os arquivos `.json` para cada região são criados automaticamente pelo backend.
+</Callout>

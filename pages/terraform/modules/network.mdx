@@ -1,0 +1,107 @@
+import Callout from 'nextra-theme-docs/callout'
+
+# tf/network/
+
+Esse módulo é responsável pela criação de uma rede VPC, subnets, internet gateway, route table e nat gateway.
+
+Vamos passar por cada recurso presente no arquivo `main.tf` e entender o que ele faz.
+
+<Callout emoji="⚠️">
+    No caso deste módulo, ele é executado apenas uma vez, diferentemente de modulos como `ec2`, pois não é necessário criar uma nova rede para cada ambiente.
+</Callout>
+
+## aws_vpc
+
+O primeiro recurso que criamos é a VPC, que é a nossa rede virtual.
+
+```hcl
+resource "aws_vpc" "vpc" {
+  cidr_block = var.vpc_cidr_block
+  enable_dns_hostnames = true
+  enable_dns_support = true
+  tags = {
+    Name = var.vpc_name
+  }
+}
+```
+
+<Callout emoji="📝">
+    Aqui definimos o CIDR da nossa rede, que é o endereço de rede que será utilizado para todas as subnets. 
+    Além disso, definimos o nome da VPC.
+</Callout>
+
+## aws_subnet
+
+Agora vamos criar as subnets que serão utilizadas na nossa VPC.
+
+```hcl
+resource "aws_subnet" "public_subnet" {
+  vpc_id = aws_vpc.vpc.id
+  cidr_block = var.public_subnet_cidr_block
+  availability_zone = var.availability_zone
+  map_public_ip_on_launch = true
+  tags = {
+    Name = var.public_subnet_name
+  }
+}
+```
+
+<Callout emoji="📝">
+    Aqui definimos o CIDR da nossa subnet pública, que é o endereço de rede que será utilizado para a subnet pública. 
+    Além disso, definimos o nome da subnet.
+</Callout>
+
+## aws_route_table
+
+Uma route table é uma tabela de roteamento que define quais rotas serão utilizadas para enviar pacotes de dados para uma determinada rede.
+
+```hcl
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    Name = "Public RT"
+  }
+}
+```
+
+## aws_route_table_association
+
+Agora vamos associar a nossa subnet pública com a nossa route table.
+
+```hcl
+resource "aws_route_table_association" "public_rta" {
+  subnet_id = aws_subnet.public_subnet.id
+  route_table_id = aws_route_table.public_rt.id
+}
+```
+
+## aws_internet_gateway
+
+Agora vamos criar um internet gateway, que é um recurso que permite que a nossa VPC tenha acesso à internet.
+
+```hcl
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    Name = "IGW"
+  }
+}
+```
+
+## aws_route
+
+Uma route é uma regra que define como o tráfego será encaminhado para uma determinada rede.
+
+```hcl
+resource "aws_route" "default_route" {
+  route_table_id         = aws_route_table.public_rt.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.igw.id
+}
+```
+
+<Callout emoji="📝">
+    Aqui definimos a rota padrão para a nossa VPC, que é a rota que será utilizada para enviar pacotes de dados para a internet.
+</Callout>

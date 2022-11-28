@@ -1,0 +1,91 @@
+import Callout from 'nextra-theme-docs/callout'
+
+
+# Modules Templates
+
+Dada a estrutura de diretórios abaixo:
+
+```sh
+├── network
+│   ├── data.tf
+│   ├── main.tf
+│   ├── outputs.tf
+│   └── variables.tf
+├── ec2
+│   ├── main.tf
+│   ├── outputs.tf
+│   └── variables.tf
+├── user
+│   ├── main.tf
+│   ├── outputs.tf
+│   └── variables.tf
+├── groups
+│   ├── main.tf
+│   ├── output.tf
+│   └── variables.tf
+├── autoscale
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── user_data.sh
+│   └── variables.tf
+│
+├── main.tf
+├── providers.tf
+├── variables.tf
+├── locals.tf
+│
+├── terraform.tfvars
+├── my_variables.json
+├── terraform.tfstate
+├── terraform.tfstate.backup
+└── terraform.tfstate.d
+```
+
+Percebemos uma certa recorrência dos arquivos:
+
+    * [**main.tf**](module-template#maintf)
+    * [**outputs.tf**](module-template#outputstf)
+    * [**variables.tf**](module-template#variablestf)
+
+em pastas separadas e na raíz do projeto. 
+
+Isso ocorre para que possamos reaproveitar os módulos em outros projetos,
+e também para que possamos ter uma melhor organização do código, já que o 
+conteudo de cada arquivo `main.tf` poderia estar em um único arquivo, por exemplo.
+
+## main.tf
+
+O arquivo `main.tf` é o arquivo principal de cada módulo, onde ficam as
+configurações de cada recurso que será criado.
+
+
+## outputs.tf
+
+O arquivo `outputs.tf` é onde ficam as saídas de cada módulo, ou seja,
+os valores que serão retornados para o arquivo `main.tf` do projeto
+principal.
+
+## variables.tf
+
+O arquivo `variables.tf` é onde ficam as variáveis de cada módulo, ou seja,
+os valores que serão passados para o arquivo `main.tf` do projeto
+principal.
+
+## Arquivos extras
+
+Além dos arquivos acima, também podemos ter outros arquivos, como por exemplo:
+
+    * **providers.tf** - onde ficam as configurações dos providers
+    * **locals.tf** - onde ficam as variáveis locais
+    * **data.tf** - onde ficam as configurações dos data sources
+
+
+
+<Callout emoji="📝">
+  <strong>Nota:</strong> <br />
+  Os arquivos `providers.tf`, `locals.tf` e `data.tf` podem ser criados na raíz do projeto, assim como podem ser criados dentro de cada módulo.
+</Callout>
+
+<Callout emoji="✅">
+    Nas proximas sessões veremos como foram criados os arquivos de cada módulo para o projeto.
+</Callout>

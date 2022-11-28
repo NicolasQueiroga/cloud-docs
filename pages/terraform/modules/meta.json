@@ -1,0 +1,8 @@
+{
+  "tf": "tf/",
+  "network": "tf/network/",
+  "ec2": "tf/ec2/",
+  "user": "tf/user/",
+  "groups": "tf/groups/",
+  "autoscale": "tf/autoscale/"
+}

@@ -1,0 +1,90 @@
+import Callout from 'nextra-theme-docs/callout'
+
+
+# tf/
+
+Na raiz do projeto é onde se encontram os arquivos de configuração do Terraform, 
+como o arquivo de estado, o arquivo de configuração do Terraform e os arquivos de variáveis.
+
+## main.tf
+
+No caso de ter um arquivo `main.tf` na raiz de um projeto com diversos **modulos**, ele será o responsável por
+mostrar ao terraform quais são os módulos que serão utilizados, aonde eles estão e quais são as variáveis
+que serão utilizadas.
+
+```hcl
+module "modulo1" {
+  source    = "./modulo1"
+  var1      = var.var1
+  var2      = local.var2
+}
+```
+
+## provider.tf
+
+O arquivo `provider.tf` é onde se configura o provider que será utilizado no projeto, no caso do AWS,
+ele é responsável por configurar as credenciais de acesso e a região que será utilizada.
+
+```hcl
+provider "aws" {
+  region = "us-east-1"
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
+}
+```
+
+## terraform.tfvars
+
+O arquivo `terraform.tfvars` é uma possibilidade de onde se colocam as variáveis que serão utilizadas no projeto.
+
+```hcl
+var1 = "valor1"
+var2 = "valor2"
+``` 
+
+<Callout emoji="⚠️">
+    Como dito anteriormente, o arquivo `terraform.tfvars` não é o único lugar onde se pode colocar as variáveis,
+    mas é uma boa prática colocar as variáveis que serão utilizadas no projeto em um arquivo separado.
+
+    Na maioria das vezes, dados sensíveis como credenciais de acesso, são colocados no arquivo `terraform.tfvars`
+</Callout>
+
+## variables.tf
+
+O arquivo `variables.tf` é onde se colocam as variáveis que serão utilizadas no projeto, porém, ao contrário do
+`terraform.tfvars`, ele não pode ser utilizado para definir os valores das variáveis, apenas para declará-las.
+
+```hcl
+variable "var1" {
+  type        = string
+  description = "Descrição da variável"
+}
+
+variable "var2" {
+  type        = string
+  description = "Descrição da variável"
+}
+```
+
+## outputs.tf
+
+O arquivo `outputs.tf` é onde se colocam os outputs que serão utilizados no projeto.
+
+```hcl
+output "modulo1" {
+  value     = module.modulo1
+}
+```
+
+## terraform.tfstate
+
+O arquivo `terraform.tfstate`, assim como o `terraform.tfstate.backup` é onde o terraform armazena o estado do projeto, ou seja, o que foi criado, o que foi
+modificado e o que foi destruído.
+
+## terraform.tfstate.d
+
+O diretório `terraform.tfstate.d` é onde o terraform armazena o estado do projeto, ou seja, o que foi criado, o que foi
+modificado e o que foi destruído, porém, ele é utilizado quando algum workspace está sendo utilizado.
+
+
+

@@ -1,7 +1,6 @@
 {
   "index": "Introduction",
-  "get-started": "Get Started",
-  "features": "Features",
-  "themes": "Themes",
-  "advanced": "Advanced"
+  "frontend": "Frontend",
+  "rest-api": "Rest API",
+  "terraform": "Terraform"
 }

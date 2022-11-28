@@ -1,11 +1,36 @@
 import Bleed from 'nextra-theme-docs/bleed'
+import Callout from 'nextra-theme-docs/callout'
 
-# Nextra
 
-**Nextra** is a [Next.js](https://nextjs.org) based static site generator.
+# Projeto Cloud 2022
 
-It supports Markdown and React components ([MDX](/features/mdx)), automatically generated [sidebar and anchor links](/get-started#sidebar-and-anchor-links), file-system based routing, built-in syntax highlighting, image optimization, custom layouts, i18n, and all the features you love about Next.js.
+## Motivação
+Infraestrutura como código é o processo de gerenciamento de infraestrutura em um arquivo ou arquivos,
+em vez de configurar recursos manualmente em uma dashboard. Partindo deste conceito, devemos:
 
-Here's what you will get in 1 minute:
+<h5>
+    Desenvolver uma aplicação capaz de provisionar uma infraestrutura por meio de uma interface amigável (livre escolha) 
+    para gerenciar e administrá-la (construir, alterar e deletar recursos).
+</h5>
 
-<Bleed>![Nextra Example](../public/demo.png)</Bleed>
+## Ferramentas
+- [x] Terraform
+- [x] NextJs
+- [x] Django REST API
+- [x] Docker
+
+
+## Estrutura
+```sh
+├── backend
+│   ├── api
+│   └── tf
+└── frontend
+```
+
+<Callout emoji="✅">
+    O projeto é composto por, basicamente, duas partes: o frontend e o backend:
+    - O [**frontend**](frontend/) é responsável por gerenciar a infraestrutura, ou seja, listar, criar, alterar e deletar recursos, fazendo tudo isso por meio de uma interface amigável construída com NextJs,
+    processando as requisições e enviando requisições para o backend.
+    - O [**backend**](rest-api/) é responsável por processar as requisições do frontend, executando os comandos do terraform via uma API REST feita em Django.
+</Callout>

@@ -1,0 +1,152 @@
+# Estrutura do frontend
+
+O frontend é composto por apenas uma página, que possui diversos componentes ligados à ela, e entre eles, temos:
+
+  * [**SecurityGroups.tsx**](intro#securitygroupstsx)
+  * [**Instances.tsx**](intro#instancestsx)
+  * [**UserGroups.tsx**](intro#usergroupstsx)
+  * [**Users.tsx**](intro#userstsx)
+  * [**Resume.tsx**](intro#resumetsx)
+
+## Função do frontend
+
+Todos os componentes presentes na página central são responsáveis por construir um arquivo `.json` de formato:
+```json
+{
+    "security_groups": [], 
+    "user_groups": [], 
+    "users": [], 
+    "instances": []
+}
+```
+que servirá de base para as variáveis de ambiente necessárias para a criação do ambiente dentro do Terraform.
+
+E então o arquivo `.json` é enviado para o backend, que irá gerar o arquivo `my_variables.json` e utilizá-lo para executar o Terraform.
+
+Mais informações sobre como a integração entre o frontend e o backend é feita podem ser encontradas mais para frente dentro do tópico de [**Rest API**](/rest-api).
+
+## SecurityGroups.tsx
+
+O componente `SecurityGroups.tsx` é responsável por criar as regras de segurança para as instâncias que serão criadas. Ele possui os seguintes campos:
+
+  * **Name**: Nome da regra de segurança
+  * **Description**: Descrição da regra de segurança
+  * **Protocol**: Protocolo da regra de segurança
+  * **From Port**: Porta de origem da regra de segurança
+  * **To Port**: Porta de destino da regra de segurança
+  * **CIDR Block**: Bloco de IP's autorizados
+
+## Instances.tsx
+
+O componente `Instances.tsx` é responsável por criar as instâncias que serão utilizadas no ambiente. Ele possui os seguintes campos:
+
+  * **Name**: Nome da instância
+  * **Region**: Região onde a instância será criada, com a **AMI** padrão para a região selecionada (Ubuntu 18.02)
+  * **Instance Type**: Tipo da instância
+  * **Security Groups**: Regras de segurança da instância (se não for selecionado nenhum grupo, a instância será criada com um grupo padrão)
+
+## UserGroups.tsx
+
+O componente `UserGroups.tsx` é responsável por criar os grupos de usuários que serão utilizados no ambiente. Ele possui os seguintes campos:
+
+  * **Name**: Nome do grupo de usuários
+  * **Description**: Descrição do grupo de usuários
+  * **Actions**: Ações que o grupo de usuários pode realizar no ambiente
+  * **Resources**: Recursos que o grupo de usuários pode acessar no ambiente
+
+## Users.tsx
+
+O componente `Users.tsx` é responsável por criar os usuários que serão utilizados no ambiente. Ele possui os seguintes campos:
+
+  * **Username**: Nome do usuário
+  * **User Groups**: Grupos de usuários que o usuário pertence (o usuário pode ou não pertencer a algum grupo)
+  * **Restriction Name**: Nome da restrição optativa aplicada diretamente ao usuário
+  * **Description**: Descrição da restrição
+  * **Action**: Ações que o usuário pode realizar no ambiente
+  * **Resource**: Recursos que o usuário pode acessar no ambiente
+
+## Resume.tsx
+
+O componente `Resume.tsx` é responsável por mostrar um resumo das informações inseridas no frontend, e também possui um botão para enviar as informações para o backend.
+
+Exemplo de um arquivo `.json` gerado pelo frontend:
+
+```json
+{
+    "security_groups": [
+        {
+            "id": "1",
+            "name": "sg1",
+            "description": "sg1",
+            "ingress": [
+                {
+                    "protocol": "tcp",
+                    "from_port": "22",
+                    "to_port": "22",
+                    "cidr_blocks": ["0.0.0.0/0"]
+                },
+                {
+                    "protocol": "tcp",
+                    "from_port": "80",
+                    "to_port": "80",
+                    "cidr_blocks": ["0.0.0.0/0"]
+                }
+            ],
+            "egress": [
+                {
+                    "protocol": "-1",
+                    "from_port": "0",
+                    "to_port": "0",
+                    "cidr_blocks": ["0.0.0.0/0"]
+                }
+            ]
+        }
+    ],
+    "instances": [
+        {
+            "name": "instance1",
+            "region": "us-east-1",
+            "instance_type": "t2.micro",
+            "security_group_ids": ["1"]
+        },
+        {
+            "name": "instance2",
+            "region": "us-east-1",
+            "instance_type": "t2.micro",
+            "security_group_ids": []
+        }
+    ],
+    "user_groups": [
+        {
+            "id": "1",
+            "name": "group1",
+            "description": "group1",
+            "actions": ["ec2:DescribeInstances"],
+            "resources": ["*"]
+        },
+        {
+            "id": "2",
+            "name": "group2",
+            "description": "group2",
+            "actions": ["ec2:StartInstances", "iam:ChangePassword"],
+            "resources": ["*"]
+        }
+    ],
+    "users": [
+        {
+            "id": "1",
+            "username": "user1",
+            "user_group_ids": ["1"],
+        },
+        {
+            "id": "2",
+            "username": "user2",
+            "user_group_ids": ["1"],
+            "restriction_name": "restriction2",
+            "description": "restriction2",
+            "actions": ["ec2:StartInstances", "iam:ChangePassword"],
+            "resources": ["*"]
+        }
+    ]
+}
+```

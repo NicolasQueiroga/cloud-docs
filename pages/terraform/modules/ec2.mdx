@@ -1,0 +1,127 @@
+import Callout from 'nextra-theme-docs/callout'
+
+# tf/ec2/
+
+Esse é o módulo responsável pela criação de instâncias EC2, e
+da criação de grupos de segurança para essas instâncias.
+
+<Callout emoji="⚠️">
+    Para esse módulo funcionar como esperado, é necessário que ele consiga ser executado
+    para cada instância presente no arquivo de configuração. Para isso, é necessário que
+    ao topo dos recursos utilizados para a criação de instâncias, seja adicionado o
+    atributo `for_each`.
+</Callout>
+
+<Callout emoji="📝">
+    O atributo `for_each` é utilizado para que o Terraform possa executar o mesmo
+    recurso para cada item presente no arquivo de configuração (como um **for loop** em
+    outras linguagens).
+
+    Para mais informações sobre o atributo `for_each`, acesse a
+    [documentação oficial](https://www.terraform.io/docs/language/meta-arguments/for_each.html).
+</Callout>
+
+Vamos passar por cada recurso presente no arquivo `main.tf` e entender o que ele faz.
+
+## Criação de Chaves Públicas
+
+O primeiro recurso presente no arquivo `main.tf` é a criação de chaves públicas para
+as instâncias EC2. Para isso, é utilizado o recurso `aws_key_pair` em conjunto com `tls_private_key`:
+
+```hcl
+resource "tls_private_key" "pk" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# generate pem file for each instance
+resource "aws_key_pair" "kp" {
+  for_each = { for instance in var.instances : instance.name => instance }
+  key_name   = each.value.name
+  public_key = tls_private_key.pk.public_key_openssh
+  provisioner "local-exec" {
+    command = "echo '${tls_private_key.pk.private_key_pem}' > '${path.module}/keys/${each.value.name}.pem'"
+  }
+}
+```
+Ao final, esse recurso cria um arquivo `.pem` para cada instância presente no arquivo e guarda na pasta `keys`.
+
+## Criação de Grupos de Segurança
+
+A criação de grupos de segurança é feita utilizando o recurso `aws_security_group`:
+
+```hcl
+resource "aws_security_group" "sg" {
+  for_each    = { for sg in var.security_groups : sg.name => sg }
+  name        = each.value.name
+  description = each.value.description
+  vpc_id      = var.vpc_id
+  tags = {
+    Name = each.value.name
+    id   = each.value.id
+  }
+
+  dynamic "ingress" {
+    for_each = each.value.ingress
+
+    content {
+      from_port   = ingress.value.from_port
+      to_port     = ingress.value.to_port
+      protocol    = ingress.value.protocol
+      cidr_blocks = ingress.value.cidr_blocks
+    }
+  }
+
+  dynamic "egress" {
+    for_each = each.value.egress
+
+    content {
+      from_port   = egress.value.from_port
+      to_port     = egress.value.to_port
+      protocol    = egress.value.protocol
+      cidr_blocks = egress.value.cidr_blocks
+    }
+  }
+}
+```
+
+Esse recurso cria um grupo de segurança para cada item presente no arquivo de configuração, mas ainda não os associa a nenhuma instância.
+
+## Criação de Instâncias EC2
+
+A criação de instâncias EC2 é feita utilizando o recurso `aws_instance`:
+
+```hcl
+resource "aws_instance" "ec2_instance" {
+  for_each = { for instance in var.instances : instance.name => instance }
+  instance_type          = each.value.instance_type
+  key_name               = each.value.name
+  ami                    = each.value.ami
+  subnet_id              = var.public_subnet
+  vpc_security_group_ids = [for sg in aws_security_group.sg : sg.id if contains(each.value.security_groups_ids, sg.tags.id)]
+
+  tags = {
+    Name = each.value.name
+  }
+
+  root_block_device {
+    volume_size = 10
+  }
+}
+```
+
+Esse recurso cria uma instância EC2 para cada item presente no arquivo de configuração, e associa os grupos de segurança 
+criados anteriormente a cada instância que possua o ID do grupo de segurança presente no arquivo de configuração.
+
+## Criação de EIPs
+
+O último recurso presente no arquivo `main.tf` é a criação de EIPs para as instâncias EC2. Para isso, é utilizado o recurso `aws_eip`:
+
+```hcl
+resource "aws_eip" "eip" {
+  for_each = { for instance in var.instances : instance.name => instance }
+  vpc      = true
+  instance = aws_instance.ec2_instance[each.value.name].id
+}
+```
+Esse recurso serve para que as instâncias EC2 possam ser acessadas de fora da VPC.
