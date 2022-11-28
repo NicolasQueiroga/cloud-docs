@@ -105,10 +105,6 @@ resource "aws_launch_configuration" "webcluster" {
 }
 ```
 <Callout emoji="⚠️">
-    A ami está escondida para não ser utilizada por outras pessoas.
-</Callout>
-
-<Callout emoji="⚠️">
     O `lifecycle` é utilizado para que o Terraform crie uma nova instância antes de destruir a antiga.
 </Callout>
 
@@ -288,3 +284,31 @@ resource "aws_lb_cookie_stickiness_policy" "cookie_stickness" {
   cookie_expiration_period = 600
 }
 ```
+
+## Testando o Auto Scale
+
+Para testar o Auto Scale, basta acessar o IP do Load Balancer e executar o comando abaixo:
+
+```bash
+curl  http://terraform-elb-590342385.us-east-1.elb.amazonaws.com/checkserver/
+```
+
+O resultado será algo parecido com isso:
+
+```bash
+"Server is live, current time is: 27/11/2022 20:16:29"
+```
+
+Outro método de testar o Auto Scale é acessar o console do Auto Scaling Group e verificar se a
+página **admin** da API está disponível. Para isso, basta visitar [**esta url**](http://terraform-elb-590342385.us-east-1.elb.amazonaws.com/admin/)
+
+<Callout emoji="⚠️">
+    Caso queira realizar login na página de administração, me peça para criar
+    um novo usuário no banco de dados.
+</Callout>
+
+<Callout emoji="✅">
+    Acesse também [**esta url**](http://ec2-54-226-53-235.compute-1.amazonaws.com/) para ver o site
+    hospedado no servidor EC2 utilizando a API presente nas instâncias do Auto Scaling Group. Sinta-se
+    livre para explorar o site :)
+</Callout>

@@ -10,7 +10,7 @@ Vamos passar por cada recurso presente no arquivo `main.tf` e entender o que ele
     No caso deste módulo, ele é executado apenas uma vez, diferentemente de modulos como `ec2`, pois não é necessário criar uma nova rede para cada ambiente.
 </Callout>
 
-## aws_vpc
+## Criação da VPC
 
 O primeiro recurso que criamos é a VPC, que é a nossa rede virtual.
 
@@ -30,7 +30,7 @@ resource "aws_vpc" "vpc" {
     Além disso, definimos o nome da VPC.
 </Callout>
 
-## aws_subnet
+## Criação da Subnet
 
 Agora vamos criar as subnets que serão utilizadas na nossa VPC.
 
@@ -51,7 +51,7 @@ resource "aws_subnet" "public_subnet" {
     Além disso, definimos o nome da subnet.
 </Callout>
 
-## aws_route_table
+## Criação e Associação da Route Table
 
 Uma route table é uma tabela de roteamento que define quais rotas serão utilizadas para enviar pacotes de dados para uma determinada rede.
 
@@ -65,8 +65,6 @@ resource "aws_route_table" "public_rt" {
 }
 ```
 
-## aws_route_table_association
-
 Agora vamos associar a nossa subnet pública com a nossa route table.
 
 ```hcl
@@ -76,7 +74,7 @@ resource "aws_route_table_association" "public_rta" {
 }
 ```
 
-## aws_internet_gateway
+## Criação do Internet Gateway e Associação com a Route Table
 
 Agora vamos criar um internet gateway, que é um recurso que permite que a nossa VPC tenha acesso à internet.
 
@@ -89,8 +87,6 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 ```
-
-## aws_route
 
 Uma route é uma regra que define como o tráfego será encaminhado para uma determinada rede.
 
